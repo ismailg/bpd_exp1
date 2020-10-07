@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Experiment</title>
+
+    <!-- get settings file -->
+    <script src="js/global.js"></script>
+
+    <!-- Getting all the jsPsych elements -->
+    <script src="jsPsych/jspsych.js"></script>
+    <link href="jsPsych/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+    <script src="jsPsych/plugins/jspsych-html-button-response.js"></script>
+    <script src="jsPsych/plugins/jspsych-survey-text.js"></script>
+    <script src="jsPsych/plugins/jspsych-survey-likert.js"></script>
+    <script src="jsPsych/plugins/jspsych-survey-multi-select.js"></script>
+    <!-- Getting custom plugins -->
+    <script src="js/customPlugins/jspsych-multichoice-leftAligned.js"></script>
+    <script src="js/customPlugins/jspsych-slider-with-value.js"></script>
+    <script src="js/customPlugins/showResults.js"></script>
+    <script src="js/customPlugins/jspsych-spinbox.js"></script>
+    <script src="js/customPlugins/jspsych-multi-dropdown.js"></script>
+    <script src="js/customPlugins/askForChoice.js"></script>
+    <script src="js/customPlugins/debrief.js"></script>
+    <script src="js/customPlugins/askForTranslucentChoice.js"></script>
+
+    <!-- Getting my stylesheet -->
+    <link href="css/style.css" rel="stylesheet" type="text/css"/>
+
+    <!-- Getting jQuery -->
+    <script src="js/jquery-3.5.1.min.js"></script>
+
+    <!-- Getting socket -->
+    <script src="socket.io/socket.io.js"> </script>
+</head>
+<body>
+
+    <!-- The bell sound that will be used  -->
+    <audio src="./sound/bell.mp3" autostart="false" width="0" height="0" id="bellSound"></audio>
+
+    <!-- Top header with the warning message and the button to show the instructions -->
+    <header id="topHeader">
+        <div id="warningQuitMessage">CAREFUL: If you refresh or leave this page, the experiment will end and you will not receive your payment.</div>
+        <button class="jspsych-btn" id="toggleInstructionsButton" onclick = "toggleInstructionsReminder();">Show Instructions</button>
+    </header>
+
+    <!-- Element that will reveal the instructions when the button is pressed -->
+    <div id="instructionsReminder"></div>
+
+    <!-- Where the jsPsych elements will show -->
+    <div id="jspsych_target">
+        <div class="jspsych-display-element jspsych-middle">
+            <form id="prolificForm" action=# method="post">
+                <br>
+                <div>Please enter your Prolific ID:</div>
+                <br>
+                <input type="text" id="prolificID" required>
+                <input class="jspsych-btn" type="submit" value="Submit">
+            </form>
+        </div>
+    </div>
+
+    <script src="js/client.js"> </script>
+</body>
+</html>
