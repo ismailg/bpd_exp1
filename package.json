@@ -1,0 +1,30 @@
+{
+  "name": "bpd_exp1_code",
+  "version": "1.0.0",
+  "description": "code for bpd experiment",
+  "main": "app.js",
+  "dependencies": {
+    "bufferutil": "^4.0.1",
+    "express": "^4.17.1",
+    "jquery": "^3.5.1",
+    "jspsych": "^6.0.0",
+    "nodemon": "^2.0.4",
+    "socket.io": "^2.3.0",
+    "utf-8-validate": "^5.0.2",
+    "uuid": "^8.3.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ismailg/bpd_exp1.git"
+  },
+  "author": "Ismail Guennouni",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ismailg/bpd_exp1/issues"
+  },
+  "homepage": "https://github.com/ismailg/bpd_exp1#readme"
+}

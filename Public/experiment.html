@@ -12,6 +12,7 @@
     <!-- Getting all the jsPsych elements -->
     <script src="jsPsych/jspsych.js"></script>
     <link href="jsPsych/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+    <script src="jsPsych/plugins/jspsych-html-slider-response.js"></script>
     <script src="jsPsych/plugins/jspsych-html-button-response.js"></script>
     <script src="jsPsych/plugins/jspsych-survey-text.js"></script>
     <script src="jsPsych/plugins/jspsych-survey-likert.js"></script>
@@ -30,19 +31,20 @@
     <link href="css/style.css" rel="stylesheet" type="text/css"/>
 
     <!-- Getting jQuery -->
-    <script src="js/jquery-3.5.1.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
 
     <!-- Getting socket -->
     <script src="socket.io/socket.io.js"> </script>
 </head>
+
 <body>
 
     <!-- The bell sound that will be used  -->
-    <audio src="./sound/bell.mp3" autostart="false" width="0" height="0" id="bellSound"></audio>
+    <!-- <audio src="./sound/bell.mp3" autostart="false" width="0" height="0" id="bellSound"></audio> -->
 
     <!-- Top header with the warning message and the button to show the instructions -->
     <header id="topHeader">
-        <div id="warningQuitMessage">CAREFUL: If you refresh or leave this page, the experiment will end and you will not receive your payment.</div>
+        <div id="warningQuitMessage"> WARNING: Refreshing or reloading this page will lead to the termination of the experiment and you will not receive your payment.</div>
         <button class="jspsych-btn" id="toggleInstructionsButton" onclick = "toggleInstructionsReminder();">Show Instructions</button>
     </header>
 

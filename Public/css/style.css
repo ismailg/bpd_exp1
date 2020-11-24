@@ -1,0 +1,109 @@
+body {
+    margin: 0;
+    padding: 0;
+}
+
+#jspsych_target {
+    margin: 10px;
+}
+
+#topHeader {
+    margin-left: 0px;
+    margin-right: 0px;
+    margin-bottom: 10px;
+    width: 99%;
+    background: lightpink;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+}
+
+#warningQuitMessage {
+    margin: 10px;
+}
+
+#toggleInstructionsButton {
+    display: none;
+    margin-right: 10px;
+}
+
+#instructionsReminder {
+    display: none;
+    width: 50%;
+    width: 500px;
+    height: 350px;
+    overflow: scroll;
+    margin: auto;
+    border: solid;
+    border-width: 2px;
+    border-color: grey;
+    padding: 10px;
+}
+
+#instructions-header {
+    margin: 0;
+    padding-top: 0;
+}
+
+#instructions-wrap {
+    text-align: left;
+}
+
+#instructions-wrap table {
+    margin-left: auto;
+    margin-right: auto;
+    border-collapse: collapse;
+}
+
+#instructions-wrap table, th, td {
+    border: 1px solid black;
+    text-align: center;
+}
+
+#instructions-wrap th, td {
+    padding: 15px;
+}
+
+#instructions-wrap th {
+    background-color: grey;
+}
+
+/* Square about their payoff */
+#instructions-wrap .theyReceive {
+    background-color: lightgrey;
+}
+
+/* The slider itself */
+#jspsych-html-slider-response-response {
+    -webkit-appearance: none;  /* Override default CSS styles */
+    appearance: none;
+    /*width: 100%; /* The width of the slider */
+    height: 25px; /* Specified height */
+    background: #d3d3d3; /* The colour of the bar */
+    outline: none; /* Remove outline */
+    opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+    -webkit-transition: .2s; /* 0.2 seconds transition on hover */
+    transition: opacity .2s;
+}
+
+/* Mouse-over effects */
+#jspsych-html-slider-response-response:hover {
+  opacity: 1; /* Fully shown on mouse-over */
+}
+
+/* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+#jspsych-html-slider-response-response::-webkit-slider-thumb {
+  -webkit-appearance: none; /* Override default look */
+  appearance: none;
+  width: 5px; /* Set a specific slider handle width */
+  height: 25px; /* Slider handle height */
+  background: #fff; /* the colour of the handle */
+  cursor: pointer; /* Cursor on hover */
+}
+
+#jspsych-html-slider-response-response::-moz-range-thumb {
+  width: 5px; /* Set a specific slider handle width */
+  height: 25px; /* Slider handle height */
+  background: #fff; /* the colour of the handle */
+  cursor: pointer; /* Cursor on hover */
+}

@@ -1,0 +1,60 @@
+{
+  "_from": "jspsych",
+  "_id": "jspsych@6.0.0",
+  "_inBundle": false,
+  "_integrity": "sha512-7krgrn7Hjn+ovwUt1ebjp8Yg72JIV0yJqxC6p7nctFSGPHQtXpvNwA3dE2dUXOgOVVrp4Q6wHpywC7MouGcEzw==",
+  "_location": "/jspsych",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "jspsych",
+    "name": "jspsych",
+    "escapedName": "jspsych",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/jspsych/-/jspsych-6.0.0.tgz",
+  "_shasum": "33cd9a4232e90000007de4f53c99b22f36aba36c",
+  "_spec": "jspsych",
+  "_where": "/Users/mbp17/Google Drive/PHD/PHD_1/Experiment_1/BPD_exp1_code",
+  "author": {
+    "name": "Josh de Leeuw"
+  },
+  "bugs": {
+    "url": "https://github.com/jodeleeuw/jsPsych/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "Behavioral experiments in a browser",
+  "devDependencies": {
+    "jest": "^22.0.3"
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "homepage": "https://github.com/jodeleeuw/jsPsych#readme",
+  "jest": {
+    "resetModules": true,
+    "testEnvironmentOptions": {
+      "fetchExternalResources": true,
+      "pretendToBeVisual": true
+    }
+  },
+  "license": "MIT",
+  "main": "jspsych.js",
+  "name": "jspsych",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jodeleeuw/jsPsych.git"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "version": "6.0.0"
+}
