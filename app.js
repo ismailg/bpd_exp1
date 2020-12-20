@@ -22,11 +22,11 @@ var agents = require(__dirname + '/utils/agents');
 
 
 // Preempting future experiments when we will vary the multilple on trust game...good = 3, bad = 1
-const conditions      = ['good_env'  , 'bad_env'];
-const conditionsName  = ['Abundance', 'Scarcity']; // Change Player Level Name
+const ai_types      = ['Nash'];
+const aiName  = ['Random Player']; // Change Player Level Name
 const game_names      = ['trust', 'ultimatum'];
 
-// Function to shuffle an array. USeful for randomly selecting conditions for new participants.
+// Function to shuffle an array. Useful for randomly selecting ai_types for new participants.
 function shuffleArray(array) {
   for (var i = array.length - 1; i > 0; i--) {
     var j = Math.floor(Math.random() * (i + 1));
@@ -35,9 +35,9 @@ function shuffleArray(array) {
     array[j] = temp;
   }
 }
-// conditions in randomized order
-var condition_array = conditions.slice();
-shuffleArray(condition_array);
+// ai_types in randomized order
+var ai_types_array = ai_types.slice();
+shuffleArray(ai_types_array);
 
 var server = app.listen(process.env.PORT || config.port, function(){
   var port = server.address().port;
@@ -93,12 +93,12 @@ io.on('connection', function(socket){
     players[socket.id] = {
       'id': socket.id,
       'room': '',
-      'condition': '',
+      'ai_type': '',
       'start': date.toISOString(),
       'end': '',
       'data': {
         'descriptives': {},
-        'trust_1': [],
+        'trust': [],
         'trust_2': [],
         'trust_3': [],
         'shootout': [],
@@ -122,6 +122,7 @@ io.on('connection', function(socket){
         if(currentProlificIDs.includes(prolificId)){
             //set boolean to false
             isNewProlificId = false;
+            console.log("server checked ID")
 
         }else{ //if it is not used yet (the file does not include it)
             //Append it to the fie with a line break
@@ -162,8 +163,13 @@ io.on('connection', function(socket){
         console.log('Client %s with prolific id %s joined room %s', socket.id, data.prolific_id, room);
         //data.participants = config.players; // I don't think this is needed anymore
         data.actualUserID = socket.id;
+        //data.human_role = config.human_role;
+        //
+        console.log('this is the human role: %s',data.role)
+        //
         var room = find_room(data);
         join_room(socket, room, data);
+
       }
       // if (typeof players[socket.id] !== 'undefined' && typeof rooms[socket.room_id] !== 'undefined') {
       //   // save any descriptives also in room
@@ -171,18 +177,128 @@ io.on('connection', function(socket){
       // }
 
       if(typeof rooms[socket.room_id] !== 'undefined'){
-        var condition = rooms[socket.room_id].condition;
-        opponentName  = conditionsName[ conditions.indexOf(condition[0]) ] || "";
+        var ai_type = rooms[socket.room_id].ai_type;
+        opponentName  = aiName[ ai_types.indexOf(ai_type[0]) ] || "";
       }
+
 
       socket.emit('joined room', {
         session_id: room,
+        human_role: config.human_role,
         opponentName,
-        // TODO: should we really provide the condition as a message?
-        condition: rooms[socket.room_id].condition[0] || "",
+        // TODO: should we really provide the ai_type as a message?
+        ai_type: rooms[socket.room_id].ai_type[0] || "",
         config: config
       });
     });
+
+/* ---------------------------------------------------------------------------
+            Start Game Request from Client
+----------------------------------------------------------------------------*/
+
+
+    socket.on('start-game-request', function (data) {
+      // (human) client can send request to start game
+      // TODO: check if game has been played
+      try {
+        console.log("start-game-request received from %s", socket.id);
+        if (game_names.indexOf(data.game) !== -1) {
+          rooms[socket.room_id].current_game = data.game;
+          rooms[socket.room_id].current_round = 1;
+          console.log("set game to %s", rooms[socket.room_id].current_game)
+          // initialize score in game to 0
+          var clients = io.nsps['/'].adapter.rooms[socket.room_id].sockets;
+          for (var c in clients) {
+            rooms[socket.room_id].score[c][rooms[socket.room_id].current_game] = 0;
+            // players[socket.id].score[rooms[socket.room_id].current_game] = 0;
+            players[c].score[rooms[socket.room_id].current_game] = 0;
+            //added ai_type to player's data file
+            // players[socket.id].ai_type = rooms[socket.room_id].ai_type;
+            players[c].ai_type = rooms[socket.room_id].ai_type;
+
+            var roundIndex  = rooms[socket.room_id].current_sub_round - 1;
+            var ai_type   = rooms[socket.room_id].ai_type;
+            var currentGame = rooms[socket.room_id].current_game;
+
+            // rooms[socket.room_id].detailed_score[c][currentGame][roundIndex] =  {
+            //   "ai_opponent" : ai_type[0] || "",
+            //   "score" : 0
+            // };
+            // players[c].detailed_score[currentGame][roundIndex] =  {
+            //   "ai_opponent" : ai_type[0] || "",
+            //   "score" : 0
+            // };
+
+            //rooms[socket.room_id].gameScore[currentGame]['detail'][roundIndex]["ai_opponent"] = ai_type[0] || "";
+
+          }
+          io.in(socket.room_id).emit('start-game', { 'game': rooms[socket.room_id].current_game });
+          io.in(socket.room_id).emit('start-round', { 'game': rooms[socket.room_id].current_game, 'round': rooms[socket.room_id].current_round });
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    });
+
+    // this event takes an action from a (human or computer) user
+    // if the number of actions taken is equal to the number of users
+    // the outcome of the round is decided
+    socket.on('take-action-investor', function (data) {
+
+      // console.log('----------Take action DataIO----------');
+      // console.log( JSON.stringify(data, null, 2));
+      // console.log('----------Take action DataIOEnd----------');
+      try {
+        console.log('rooms[socket.room_id].current_game', rooms[socket.room_id].current_game)
+
+        // data should be an object (JSON) format with
+        // {(socket) id: , action: , rt: }
+        config.debug && console.log('Investor action %s received from %s', data.action, socket.id);
+
+        // push the action to the players array
+        players[socket.id].data[rooms[socket.room_id].current_game].push({ 'round': rooms[socket.room_id].current_round, 'action': data.action, 'rt': data.rt });
+
+        // push the action in the current actions array
+        rooms[socket.room_id].current_actions.push({ id: socket.id, action: data.action, rt: data.rt, agent: data.agent });
+      } catch (err) {
+      console.log(err);
+      }
+
+     });
+
+     socket.on('take-action-trustee', function (data) {
+
+       // console.log('----------Take action DataIO----------');
+       // console.log( JSON.stringify(data, null, 2));
+       // console.log('----------Take action DataIOEnd----------');
+       try {
+         console.log('rooms[socket.room_id].current_game', rooms[socket.room_id].current_game)
+
+         // data should be an object (JSON) format with
+         // {(socket) id: , action: , rt: }
+         config.debug && console.log('Trustee action %s received from %s', data.action, socket.id);
+
+         // push the action to the players array
+         players[socket.id].data[rooms[socket.room_id].current_game].push({ 'round': rooms[socket.room_id].current_round, 'action': data.action, 'rt': data.rt });
+
+         // push the action in the current actions array
+         rooms[socket.room_id].current_actions.push({ id: socket.id, action: data.action, rt: data.rt});
+
+         // check if everyone acted
+         if (rooms[socket.room_id].current_actions.length == rooms[socket.room_id].players) {
+           // all actions have been taken
+           rooms[socket.room_id].feedback_done = 0;
+
+           config.debug && console.log('all actions received');
+         }
+       } catch (err) {
+       console.log(err);
+       }
+
+      });
+
+
+
 
     /*------------------------------------------------------------------------------
     -                          Useful functions for creating or finding rooms      -
@@ -234,22 +350,24 @@ io.on('connection', function(socket){
 
 
     function create_room(id, experiment_id, actualUserID) {
-      // check if there are any conditions left
-      if (condition_array.length == 0) {
-        // create new set of randomized conditions
-        condition_array = conditions.slice();
-        shuffleArray(condition_array);
+      //check if there are any ai_types left
+      if (ai_types_array.length == 0) {
+        // create new set of randomized ai_types
+        ai_types_array = ai_types.slice();
+        shuffleArray(ai_types_array);
       }
-      // pick first element as condition for this room
-      var condition = condition_array.splice(0, 1);
-      console.log(condition);
+      // pick first element as ai_type for this room
+      var ai_type = ai_types_array.splice(0, 1);
+      console.log(ai_type);
 
       return {
         id,
         actualUserID,
         gameScore : false,
         experiment_id,
-        condition,
+        human_role: config.human_role,
+        ai_role: config.ai_role,
+        ai_type: ai_type,
         required_participants: config.humans,
         players: config.players,
         started: false,
@@ -264,7 +382,6 @@ io.on('connection', function(socket){
           trust_1: [],
           trust_2: [],
           trust_3: [],
-          shootout: [],
           strategy: {}
         },
         participants: function () {
@@ -282,45 +399,43 @@ io.on('connection', function(socket){
           socket.join(this.id);
           socket.room_id = this.id;
 
-          if(!this.condition.length){
-            console.log('Error !!! Condition not given !!!')
+          if(!this.ai_type.length){
+            console.log('Error !!! ai_type not given !!!')
             return;
           }
-          var condition = this.condition[0];
+          var ai_type = this.ai_type[0];
 
           // add scores for this player
 
           if (this.participants() == this.required_participants) {
             // fill room with AI players
             var ai_required = config.players - this.participants();
+
             if (ai_required > 0) {
               ai_agents[this.id] = [];
-
-
               for (var i = 1; i <= ai_required; i++) {
                 var agent;
-                agent = new agents.NashPlayer(this.id);
-                // if (condition == "Nash") {
-                //   console.log("Creating Nash player");
-                //   agent = new agents.NashPlayer(this.id);
-                // } else if (condition == "Level1") {
+                //agent = new agents.NashInvestor(this.id);
+                if (ai_type == "Nash") {
+                  console.log("Creating Nash player");
+                  agent = new agents.NashInvestor(this.id);
+                // } else if (ai_type == "Level1") {
                 //   console.log("Creating LevelOnePlayer");
                 //   agent = new agents.LevelOnePlayer(this.id, config.epsilon);
-                // } else if (condition == "Level2") {
+                // } else if (ai_type == "Level2") {
                 //   console.log("Creating LevelTwoPlayer");
                 //   agent = new agents.LevelTwoPlayer(this.id, config.epsilon);
                 // }
                 ai_agents[this.id][i - 1] = agent;
                 ai_agents[this.id][i - 1].join(this.id);
 
-                remainingPlayers = conditions.filter(e => e !== condition); // will return ['A', 'C']
+                remainingPlayers = ai_types.filter(e => e !== ai_type); // will return ['A', 'C']
 
                 if(remainingPlayers.length){
-                  condition = remainingPlayers[0];
+                  ai_type = remainingPlayers[0];
                 }
-
-              }
-
+               }
+             };
             }
           }
           // socket.player_id = 1; // always the left player
@@ -339,8 +454,7 @@ io.on('connection', function(socket){
             this.score[c] = {
               trust_1: 0,
               trust_2: 0,
-              trust_3: 0,
-              shootout: 0
+              trust_3: 0
             };
 
             // if(typeof(this.detailed_score[c]) == 'undefined'){
@@ -355,8 +469,7 @@ io.on('connection', function(socket){
           }
         }
       };
-    } // Enf of function create_room
-
+    } // End of function create_room
 
 
 

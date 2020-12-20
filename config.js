@@ -11,19 +11,25 @@ config.debug = true;
 config.players = 2;
 config.humans = 1;
 
+config.human_role = "trustee";
+config.ai_role = "investor";
 
-config.conditions = [
-  "good_env",
-  "bad_env"
+config.role_conditions = [
+  "investor",
+  "trustee"
 ];
 
+// Number of round, assumign three games played.
 config.numrounds1 = 10;
 config.numrounds2 = 10;
 config.numrounds3 = 10;
 
+// Endowment given to investor at the start of each round.
+config.endowment = 20;
 
-config.good_mult = 3;
-config.bad_mult = 1;
+// How much does the amount sent by investor get multiplied by?
+config.mult = 3;
+
 
 config.showUpFee = '1.00';
 

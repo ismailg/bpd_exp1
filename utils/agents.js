@@ -1,60 +1,65 @@
 // from https://stackoverflow.com/questions/36073372/adding-a-chatbot-in-socket-io-basic-chat-application
 //
-var config = require('../config');
+var {config} = require('../config');
 
 const sio = require('socket.io-client');
 //var socketAddress = config.getServerAddress();
 var socketAddress = config.local_server
 
 function Agent(room_id) {
-  console.log("Agent constructor called")
+  config.debug &&
+    console.log("Agent constructor called with room_id=" + room_id);
   this.socket = undefined;
   this.room_id = room_id;
+  // this.role =
   // this.minimumRT = config.minimum_decision_time;
   // this.maximumRT = config.maximum_decision_time;
-  this.states = [],
-    this.actions = [],
-    this.rewards = []
+  (this.states = []), (this.actions = []), (this.rewards = []);
 }
 
 Agent.prototype.join = function (room_id) {
-  console.log("Agent join called")
-  try {
-    this.socket = sio.connect("http://127.0.0.1:8078", { path: config.path + '/socket.io' });
-    console.log("Connection init done")
+  config.debug && console.log("Agent.join: called with room_id=" + room_id);
+  config.debug &&
+    console.log(`Connecting to ${config.local_server} for ${room_id}`);
+  /**
+   * There is a known issue while establishing the connection with socket.io-client
+   * See https://github.com/socketio/socket.io-client/issues/1097
+   */
+  this.socket = sio.connect(config.local_server, {
+    path: config.path + "/socket.io",
+    reconnection: true,
+    agent: false,
+    rejectUnauthorized: false,
+  });
+
     this.socket.room_id = room_id;
     this.room_id = room_id;
     var socket = this.socket;
 
-    socket.on("error", function(e) {
-      console.log("socket error")
-      console.log(e)
-    })
-
-
-    //socket.on('connect', this.connect_listener.bind(this));
-  socket.on("connect", function () {
-    console.log("Agent connection established");
-  })
+    socket.on("connect_error", function (e) {
+      console.log("socket connect_error");
+      console.log(e);
+    });
+    socket.on('connect', this.connect_listener.bind(this));
     socket.on('start-game', this.start_game_listener.bind(this));
     socket.on('start-round', this.start_round_listener.bind(this));
-    socket.on('win', this.win_listener.bind(this));
-    socket.on('loss', this.loss_listener.bind(this));
-    socket.on('tie', this.tie_listener.bind(this));
+    // socket.on('win', this.win_listener.bind(this));
+    // socket.on('loss', this.loss_listener.bind(this));
+    // socket.on('tie', this.tie_listener.bind(this));
     socket.on('player-left', this.player_left_listener.bind(this));
-
-  } catch (e) {
-    console.log("Agent join error")
-    console.log(e)
-  }
-
 };
 
 Agent.prototype.connect_listener = function () {
+  config.debug && console.log("Agent.connect_listener: called");
   var socket = this.socket;
-  config.debug && console.log('Agent with socket id %s will attempt to join room %s', socket, this.room_id);
-  socket.emit('join-room', { 'room_id': this.room_id });
-}
+  config.debug &&
+    console.log(
+      "Agent with socket id %s will attempt to join room %s",
+      socket.id,
+      this.room_id
+    );
+  socket.emit("join-room", { room_id: this.room_id });
+};
 
 Agent.prototype.leave = function () {
   var socket = this.socket;
@@ -76,40 +81,40 @@ Agent.prototype.start_round_listener = function (data) {
     state = this.states[this.states.length - 1];
   }
 
-  var actions = config.game_actions[data.game];
-
-  this.take_action(state, actions);
+  // var actions = config.game_actions[data.game];
+  // this.take_action(state, actions);
+  this.take_action(state);
 }
 
-Agent.prototype.win_listener = function (data) {
-  var state = {
-    my_action: data[0].action,
-    opponent_action: data[1].action
-  }
-  var reward = 1;
-  this.update(state, reward);
-  this.socket.emit('feedback-done');
-};
-
-Agent.prototype.loss_listener = function (data) {
-  var state = {
-    my_action: data[0].action,
-    opponent_action: data[1].action
-  }
-  var reward = -1;
-  this.update(state, reward);
-  this.socket.emit('feedback-done');
-};
-
-Agent.prototype.tie_listener = function (data) {
-  var state = {
-    my_action: data[0].action,
-    opponent_action: data[1].action
-  }
-  var reward = 0;
-  this.update(state, reward);
-  this.socket.emit('feedback-done');
-};
+// Agent.prototype.win_listener = function (data) {
+//   var state = {
+//     my_action: data[0].action,
+//     opponent_action: data[1].action
+//   }
+//   var reward = 1;
+//   this.update(state, reward);
+//   this.socket.emit('feedback-done');
+// };
+//
+// Agent.prototype.loss_listener = function (data) {
+//   var state = {
+//     my_action: data[0].action,
+//     opponent_action: data[1].action
+//   }
+//   var reward = -1;
+//   this.update(state, reward);
+//   this.socket.emit('feedback-done');
+// };
+//
+// Agent.prototype.tie_listener = function (data) {
+//   var state = {
+//     my_action: data[0].action,
+//     opponent_action: data[1].action
+//   }
+//   var reward = 0;
+//   this.update(state, reward);
+//   this.socket.emit('feedback-done');
+// };
 
 Agent.prototype.new_message_listener = function (data) {
   var socket = this.socket;
@@ -129,22 +134,34 @@ Agent.prototype.determine_RT = function () {
   return this.minimumRT + Math.random() * (this.maximumRT - this.minimumRT);
 };
 
-Agent.prototype.take_action = function (state, actions) {
+// Agent.prototype.take_action = function (state, actions) {
+//   var socket = this.socket;
+//   config.debug && console.log('%s is taking action from actions %s', socket.id, actions);
+//
+//   var act = this.determine_action(state, actions);
+//
+//   config.debug && console.log('%s took action %s', socket.id, act, state);
+//   var random_RT = this.determine_RT()
+//   this.timeout = setTimeout(function () {
+//     socket.emit('take-action', { action: act, rt: random_RT, agent: true });
+//   }, random_RT);
+//   this.actions.push(act);
+// };
+
+Agent.prototype.take_action = function (state) {
   var socket = this.socket;
-  config.debug && console.log('%s is taking action from actions %s', socket.id, actions);
+  config.debug && console.log('%s is taking action', socket.id);
 
-  var act = this.determine_action(state, actions);
-  // var act = actions[0] === 'left'
-  //   ? random(actions)
-  //   : this.determine_action(state, actions);
+  var act = this.determine_action(state);
 
-  config.debug && console.log('%s took action %s', socket.id, act, state);
+  config.debug && console.log('%s took action %s', socket.id, act);
   var random_RT = this.determine_RT()
   this.timeout = setTimeout(function () {
     socket.emit('take-action', { action: act, rt: random_RT, agent: true });
   }, random_RT);
   this.actions.push(act);
 };
+
 
 Agent.prototype.update = function (state, reward) {
   this.states.push(state);
@@ -154,18 +171,20 @@ Agent.prototype.update = function (state, reward) {
 Agent.prototype.constructor = Agent;
 
 
-function NashPlayer(room_id) {
+function NashInvestor(room_id) {
   Agent.call(this, room_id);
 }
 
-NashPlayer.prototype = Object.create(new Agent());
+NashInvestor.prototype = Object.create(new Agent());
 
-NashPlayer.prototype.determine_action = function (state, actions) {
-  var item = actions[Math.floor(Math.random() * actions.length)];
+// Action is how much investor sends to trustee, from 0 to endowment.
+NashInvestor.prototype.determine_action = function (state) {
+  max = config.endowment
+  var item = Math.floor(Math.random() * max);
   return item;
 }
 
-NashPlayer.prototype.constructor = NashPlayer;
+NashInvestor.prototype.constructor = NashInvestor;
 
 // function LevelOnePlayer(room_id, epsilon) {
 //   Agent.call(this, room_id);
@@ -220,6 +239,6 @@ NashPlayer.prototype.constructor = NashPlayer;
 
 
 exports.Agent = Agent;
-exports.NashPlayer = NashPlayer;
+exports.NashInvestor = NashInvestor;
 // exports.LevelOnePlayer = LevelOnePlayer;
 // exports.LevelTwoPlayer = LevelTwoPlayer;

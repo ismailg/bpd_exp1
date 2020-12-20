@@ -23,6 +23,7 @@ document.addEventListener("contextmenu", function(e){
 /*------------------------------------------------------------------------------
 -                                 Startup                                     -
 ------------------------------------------------------------------------------*/
+var debug = true;
 
 //Start collecting data:
 var fullUserData = {};
@@ -66,6 +67,7 @@ document.getElementById("prolificForm").addEventListener("submit", function(e){
         if(isNewProlificId){
             //Add the system that shows a warning before leaving the page. Only added here because otherwise I cannot redirect because of a wrong prolific id without giving participants the upportunity to stay on the page.
             // Warning before leaving the page (back button, or outgoing link):
+            console.log("valid Prolific ID")
             window.onbeforeunload = function() {
                 let warningMsg = "If you leave now, the experiment will end and you will not receive your payment. Are you sure you want to leave this page?";
                 //Gecko + IE
@@ -95,8 +97,9 @@ document.getElementById("prolificForm").addEventListener("submit", function(e){
 
 //Start creating the experiment in jsPsych when asked by the server:
 socket.on('joined room', function(experimentSettings){
-    //console.log(experimentSettings);
+
     fullUserData.settings = experimentSettings;
+    console.log("the human role is %s",experimentSettings.human_role);
     createInstructions(experimentSettings);
 
 // socket.on('startExperiment', function(experimentSettings){
@@ -140,24 +143,25 @@ function createInstructions(experimentSettings){
                 <li>Answering a second series of questions.</li>
             </ol>
         </p>`;
-    //Counterbalancing the payoffs
-    if(experimentSettings.config.conditions.includes("good_env")){ //condition A
+    //Instructions for trust game based on human role
+    var human_role = experimentSettings.human_role
+    if(human_role.includes("trustee")){ //condition  human is trustee
         instructionHTML += `
             <p>
-                At the beginning of each round, the investor will receive an endowment of 20 MU. You will have the role of the trustee.
+                You will have the role of the trustee in this game. At the beginning of each round, the investor will receive an endowment of 20 MU.
                 The investor will decide how much of his endowment to send to you.
-                That amount will be multiplied by ${experimentSettings.config.good_mult} before you receive it. You will then decide how much to send back
+                That amount will be multiplied by ${experimentSettings.config.mult} before you receive it. You will then decide how much to send back
                 to the investor.
 
             </p>
         `;
-    }else{ // condition B
+    }else{ // condition human is investor
         instructionHTML += `
         <p>
-        At the beginning of each round, the investor will receive an endowment of 20 MU. You will have the role of the trustee.
-        The investor will decide how much of his endowment to send to you.
-        That amount will be multiplied by ${experimentSettings.config.bad_mult} before you receive it. You will then decide how much to send back
-        to the investor.
+        You will have the role of the Investor in this game. At the beginning of each round, you will receive an endowment of 20 M and you need to decide
+        how much of his endowment to send to the trustee.
+        That amount will be multiplied by ${experimentSettings.config.good_mult} after you send it. The trustee will then decide how much to send back
+        to you and how much to keep
 
         </p>
         `;
@@ -204,10 +208,10 @@ function createExperiment(instructionHTML, experimentSettings){
 
     //Instructions comprehension questions:
     var payoffResponseOptions = [
-        `${experimentSettings.config.good_mult}`,
-        `${experimentSettings.config.bad_mult}`,
-        `${experimentSettings.config.good_mult + 1 }`,
-        `${experimentSettings.config.good_mult + 3 }`];
+        `${experimentSettings.config.mult}`,
+        `${experimentSettings.config.mult + 1}`,
+        `${experimentSettings.config.mult + 2 }`,
+        `${experimentSettings.config.mult + 3 }`];
     var trueOrFalseResponseOptions = ["true", "false"];
     var comprehensionQuestions = {
         type: 'leftAligned-survey-multi-choice',
@@ -252,28 +256,31 @@ function createExperiment(instructionHTML, experimentSettings){
         ],
     };
 
-    //Creating the conditions for the correct answers, based on the condition
+    //Creating the role_conditions for the correct answers, based on the condition
     //Payoff conditionals
-    var instructionsConditional1, instructionsConditional2;
-    if(experimentSettings.config.conditions.includes("good_env")){ //counterbalancing A
-        instructionsConditional1 = `${experimentSettings.config.good_mult}`;
-    }else{ //counterbalancing B
-        instructionsConditional1 = `${experimentSettings.config.bad_mult}`;
-    }
-
+    // var instructionsConditional1;
+    // if(experimentSettings.config.human_role.includes("trustee")){ //counterbalancing A
+    //     instructionsConditional1 = `${experimentSettings.config.good_mult}`;
+    // }else{ //counterbalancing B
+    //     instructionsConditional1 = `${experimentSettings.config.good_mult}`;
+    // }
     //Creating the loop
     var comprehension_loop_node = {
         timeline: [comprehensionQuestions],
         loop_function: function(data){
             //Need to get the data this way to have it as an object you can use:
             var answers = JSON.parse(data.values()[0].responses);
-            if( //Conditions for getting the loop right and stopping the loop
-                answers.instructionsComprehension1 === instructionsConditional1 &&
+            if( //role_conditions for getting the loop right and stopping the loop
+                answers.instructionsComprehension1 === `${experimentSettings.config.mult}` &&
                 answers.instructionsComprehension3 === "true" &&
                 answers.instructionsComprehension4 === "true" &&
                 answers.instructionsComprehension5 === "false" &&
                 answers.instructionsComprehension6 === "false"
             ){
+                socket.emit('start-game-request', {
+                  game: "trust"
+
+                })  ;
                 return false; //stop the loop
             } else {
                 //Warning participants that were incorrect and that they can consult the instructions
@@ -284,37 +291,49 @@ function createExperiment(instructionHTML, experimentSettings){
     };
     timeline.push(comprehension_loop_node);
 
-    //Choice:
-
-    // //Get the table of the payoffs and translucency information to remind participants:
-    // let startTableExtras = instructionHTML.search("<table"); //get the starting index of the table+
-    // let endTableExtras = instructionHTML.search("The other participant will not be told if their choice was revealed to you or not."); //get the  index of the end of the table+ (starts at "0")
-    // endTableExtras += 95; //add to include the other elements of the string
-    // //Extract this part from the instructions for the choice text
-    // let tableExtrasHTML = instructionHTML.slice(startTableExtras, endTableExtras);
-    //
-    // //We also need to extract just the table for the translucency choice
-    // let endJustTable = instructionHTML.search("</table>");
-    // endJustTable += 8; //add to include the other elements of the string
-    // //Grab just the table from the instructions
-    // let justTableHTML = instructionHTML.slice(startTableExtras, endJustTable);
-
+    // Code for start of game
     //Create the text to present for the choice:
-    let choiceHTML = "<div id='instructions-wrap'><p>Please carefully make your choice by moving the slider. This will determine how much you send back to the investor from the money pot. You can consult instructions at any time by clicking on the button in the top right.</p><br>";
+    let choiceHTML = "<div id='instructions-wrap'><p> Please carefully make your choice by moving the slider. This will determine how much you send to the opponent from the money pot. You can consult instructions at any time by clicking on the button in the top right.</p><br>";
     // choiceHTML += tableExtrasHTML;
-    choiceHTML += '</div><p style="text-align: center;">Please make your choice:</p>';
+    choiceHTML += '</div><p style="text-align: center;">Move the slider to select how much to send:</p>';
 
-
-    var choice_trial = {
+    var choice_trial_trustee = {
         type: 'html-slider-response',
         stimulus: choiceHTML,
-        min: 0,
-        max: 100,
+        labels: ["0", "25%", "50%", "75%", "100%"],
         on_finish: function(data){
-            socket.emit('player made choice', data.response);
+            console.log(data)
+            data.action = data.response;
+            socket.emit('take-action-trustee', data);
+            console.log("Trustee action sent");
         }
     };
+
+    var choice_trial_investor = {
+        type: 'html-slider-response',
+        stimulus: choiceHTML,
+        labels: ["0", "5", "10", "15", "20"],
+        on_finish: function(data){
+            socket.emit('take-action-investor', data);
+            console.log("Investor action sent");
+        }
+    };
+
+    socket.on("start-game",function(data){
+      console.log("start game request received");
+    });
+
+    var choice_trial;
+    if (experimentSettings.human_role == "trustee"){
+      choice_trial = choice_trial_trustee;
+      //timeline.push(choice_trial_trustee);
+    } else {
+      choice_trial = choice_trial_investor;
+    };
+
     timeline.push(choice_trial);
+
+
 
 
 
