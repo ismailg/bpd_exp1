@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Experiment</title>
-
+    <!-- Getting jQuery -->
+    <!-- <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script> -->
+    <script src="js/jquery/dist/jquery.min.js"></script>
     <!-- get settings file -->
     <script src="js/global.js"></script>
 
@@ -18,20 +20,23 @@
     <script src="jsPsych/plugins/jspsych-survey-likert.js"></script>
     <script src="jsPsych/plugins/jspsych-survey-multi-select.js"></script>
     <!-- Getting custom plugins -->
+    <script src="js/customPlugins/jspsych-await-action.js"></script>
     <script src="js/customPlugins/jspsych-multichoice-leftAligned.js"></script>
     <script src="js/customPlugins/jspsych-slider-with-value.js"></script>
     <script src="js/customPlugins/showResults.js"></script>
     <script src="js/customPlugins/jspsych-spinbox.js"></script>
     <script src="js/customPlugins/jspsych-multi-dropdown.js"></script>
-    <script src="js/customPlugins/askForChoice.js"></script>
+    <script src="js/customPlugins/askForInvestorChoice.js"></script>
     <script src="js/customPlugins/debrief.js"></script>
     <script src="js/customPlugins/askForTranslucentChoice.js"></script>
 
     <!-- Getting my stylesheet -->
     <link href="css/style.css" rel="stylesheet" type="text/css"/>
 
-    <!-- Getting jQuery -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <!-- Getting favicons -->
+    <link rel="shortcut icon" href="#">
+
+
 
     <!-- Getting socket -->
     <script src="socket.io/socket.io.js"> </script>
@@ -40,7 +45,7 @@
 <body>
 
     <!-- The bell sound that will be used  -->
-    <!-- <audio src="./sound/bell.mp3" autostart="false" width="0" height="0" id="bellSound"></audio> -->
+    <audio src="./sound/bell.mp3" autostart="false" width="0" height="0" id="bellSound"></audio>
 
     <!-- Top header with the warning message and the button to show the instructions -->
     <header id="topHeader">

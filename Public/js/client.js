@@ -84,7 +84,7 @@ document.getElementById("prolificForm").addEventListener("submit", function(e){
             data = {
               "prolific_id" : prolificId
             }
-
+            console.log('About to join-create_room');
             //Inform the server of a valid id:
             socket.emit('join-room', data);
 
@@ -95,9 +95,11 @@ document.getElementById("prolificForm").addEventListener("submit", function(e){
     });
 });
 
+var investments = [];
+var timeline = [];
+
 //Start creating the experiment in jsPsych when asked by the server:
 socket.on('joined room', function(experimentSettings){
-
     fullUserData.settings = experimentSettings;
     console.log("the human role is %s",experimentSettings.human_role);
     createInstructions(experimentSettings);
@@ -107,6 +109,17 @@ socket.on('joined room', function(experimentSettings){
 //     fullUserData.settings = experimentSettings;
 //     createInstructions(experimentSettings);
 });
+
+
+socket.on("start-game",function(data){
+  console.log("start game request received");
+});
+
+socket.on("start-round",function(data){
+  console.log("start round request received");
+});
+
+
 
 
 /*------------------------------------------------------------------------------
@@ -194,9 +207,55 @@ function toggleInstructionsReminder(){
 -                                 jsPsych                                      -
 ------------------------------------------------------------------------------*/
 
+
+function createTrial(role,max,instructionHTML,experimentSettings){
+
+  let choiceHTML = "<div id='instructions-wrap'><p> Please carefully make your choice by moving the slider. This will determine how much you send to the opponent from the money pot. You can consult instructions at any time by clicking on the button in the top right.</p><br>";
+  // choiceHTML += tableExtrasHTML;
+  choiceHTML += '</div><p style="text-align: center;">Move the slider to select how much to send:</p>';
+
+  var trial_trustee = {
+      type: 'html-slider-response',
+      stimulus: choiceHTML,
+      min: 0,
+      max: max,
+      labels: ["0", String(max)],
+      on_finish: function(data){
+          console.log(data);
+          data.action = data.response;
+          socket.emit('take-action-trustee', data);
+          console.log("Trustee action sent");
+      }
+  };
+
+  //in case the human player is the investor
+  var trial_investor = {
+      type: 'html-slider-response',
+      stimulus: choiceHTML,
+      labels: ["0", "5", "10", "15", "20"],
+      on_finish: function(data){
+          socket.emit('take-action-investor', data);
+          console.log("Investor action sent");
+      }
+  };
+
+  if (role == "investor"){
+    return trial_investor;
+  } else {
+    return trial_trustee;
+  }
+}
+
+
+/*------------------------------------------------------------------------------
+-                               Create Experiment                                   -
+------------------------------------------------------------------------------*/
+
+
 function createExperiment(instructionHTML, experimentSettings){
     //create timeline
-    var timeline = [];
+
+    var didInvestorTakeAction = false;
 
     //Instructions:
     var instructions_button_trial = {
@@ -213,6 +272,7 @@ function createExperiment(instructionHTML, experimentSettings){
         `${experimentSettings.config.mult + 2 }`,
         `${experimentSettings.config.mult + 3 }`];
     var trueOrFalseResponseOptions = ["true", "false"];
+
     var comprehensionQuestions = {
         type: 'leftAligned-survey-multi-choice',
         preamble: '<p> These are comprehension questions about the instructions that you must answer correctly in order to progress. If you answer them incorrectly, you will be presented with the questions again. <strong>You can click the “Show Instructions” button on the top right of the screen to show the instructions again.</strong> </p>',
@@ -291,72 +351,170 @@ function createExperiment(instructionHTML, experimentSettings){
     };
     timeline.push(comprehension_loop_node);
 
-    // Code for start of game
+
+
+    var await_action = {
+      type: 'await-action',
+      stimulus: '<p>Please wait for the other participant to select action.</p><p>This should not take more than a few minutes.</p><p>Please do not refresh or leave the experiment or we will not be able to pay you.</p><p>A bell sound will play when the experiment is ready to continue.</p>',
+      multiplier: experimentSettings.config.mult,
+      choices: ['Continue']
+    };
+
+    timeline.push(await_action);
+
+// Checking data saved ----------------------------------
+    //var lasttrialdata = jsPsych.data.get().select('investor_action');
+    var lasttrialdata = jsPsych.data.getLastTrialData().values();
+    console.log(lasttrialdata);
+
+// --------------------------------------------------------
+
+    //Code for start of game
     //Create the text to present for the choice:
     let choiceHTML = "<div id='instructions-wrap'><p> Please carefully make your choice by moving the slider. This will determine how much you send to the opponent from the money pot. You can consult instructions at any time by clicking on the button in the top right.</p><br>";
     // choiceHTML += tableExtrasHTML;
     choiceHTML += '</div><p style="text-align: center;">Move the slider to select how much to send:</p>';
 
+
     var choice_trial_trustee = {
-        type: 'html-slider-response',
+        type: 'slider-with-value',
         stimulus: choiceHTML,
-        labels: ["0", "25%", "50%", "75%", "100%"],
+        min : 0,
+        multiplier: experimentSettings.config.mult,
         on_finish: function(data){
-            console.log(data)
+            console.log(data);
             data.action = data.response;
             socket.emit('take-action-trustee', data);
             console.log("Trustee action sent");
         }
     };
 
-    var choice_trial_investor = {
-        type: 'html-slider-response',
-        stimulus: choiceHTML,
-        labels: ["0", "5", "10", "15", "20"],
-        on_finish: function(data){
-            socket.emit('take-action-investor', data);
-            console.log("Investor action sent");
-        }
-    };
+    timeline.push(choice_trial_trustee);
 
-    socket.on("start-game",function(data){
-      console.log("start game request received");
+    // socket.on("investor-took-action",function(data){
+    //   console.log("I know investor took action");
+    // });
+    //var array = [await_action,choice_trial_trustee];
+    //var repeated_trials = jsPsych.randomization.repeat(array,5);
+    //timeline.push(array);
+
+    // Initiate timeline in jsPsych
+    var userJsPsychData;
+    jsPsych.init({
+      timeline: timeline,
+      display_element: 'jspsych_target',
+      show_progress_bar: true,
+      on_finish: function() {
+        console.log("on_finish got called!");
+        //Show data to check
+        jsPsych.data.displayData();
+
+        //Getting the data as a json string
+        userJsPsychData = jsPsych.data.get().json();
+        fullUserData.jsPsych = JSON.parse(userJsPsychData);
+
+        //Send Data:
+        socket.emit('Write Data', fullUserData);
+
+        //Take out the warning before unload
+        window.onbeforeunload = function() {
+            return undefined;
+        };
+
+        //Redirect to back to prolific
+        window.location = String("https://app.prolific.co/submissions/complete?cc=49DC9373")
+      }
     });
 
-    var choice_trial;
-    if (experimentSettings.human_role == "trustee"){
-      choice_trial = choice_trial_trustee;
-      //timeline.push(choice_trial_trustee);
-    } else {
-      choice_trial = choice_trial_investor;
-    };
+}
 
-    timeline.push(choice_trial);
+// socket.on("investor-took-action",function(data){
+//       console.log("last investor action is %s", data);
+//       console.log('** this: ', this);
+//       max= fullUserData.settings.config.mult * data;
+//       investments.push(max);
+//       console.log(investments);
+//       trial = createTrial("trustee",max,instructionHTML,experimentSettings);
+//       timeline.push(trial);
+//       console.log("Timeline: ", timeline);
+//
+//     });
 
 
 
+
+
+
+
+
+
+
+
+
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    // var choice_trial_trustee = {
+    //     type: 'html-slider-response',
+    //     stimulus: choiceHTML,
+    //     min: 0,
+    //     max: max,
+    //     labels: ["0", String(max)],
+    //     on_finish: function(data){
+    //         console.log(data);
+    //         data.action = data.response;
+    //         socket.emit('take-action-trustee', data);
+    //         console.log("Trustee action sent");
+    //     }
+    // };
+
+
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    // var choice_trial;
+    // if (experimentSettings.human_role == "trustee"){
+    //   choice_trial = choice_trial_trustee;
+    //   console.log(choice_trial_trustee.max)
+    // } else {
+    //   choice_trial = choice_trial_investor;
+    // };
+    //
+    // timeline.push(choice_trial);
+
+
+
+    // var test_procedure = {
+    //   timeline: [choice_trial],
+    //   //timeline_variables: test_stimuli,
+    //   //randomize_order: true,
+    //   //repetitions: experimentSettings.config.numrounds1
+    //   repetitions: 1
+    // };
+
+  //timeline.push(test_procedure);
 
 
     //Instructions comprehension questions:
-    var choiceResponseOptions = ["You choose A and they choose A", "You choose A and they choose B", "You choose B and they choose A", "You choose B and they choose B"];
-    var payoffComprehensionQuestions = {
-        type: 'leftAligned-survey-multi-choice',
-        questions: [
-            {
-                prompt: "Which outcome would provide you with the highest possible reward you could earn?",
-                name: "payoffComprehension1",
-                options: choiceResponseOptions,
-                required: true,
-            },
-            {
-                prompt: "Which outcome would provide the highest possible sum of rewards (i.e. which outcome provides the most money for both you and the other participant)?",
-                name: "payoffComprehension2",
-                options: choiceResponseOptions,
-                required: true,
-            }
-        ]
-    };
-    timeline.push(payoffComprehensionQuestions);
+    // var choiceResponseOptions = ["You choose A and they choose A", "You choose A and they choose B", "You choose B and they choose A", "You choose B and they choose B"];
+    // var payoffComprehensionQuestions = {
+    //     type: 'leftAligned-survey-multi-choice',
+    //     questions: [
+    //         {
+    //             prompt: "Which outcome would provide you with the highest possible reward you could earn?",
+    //             name: "payoffComprehension1",
+    //             options: choiceResponseOptions,
+    //             required: true,
+    //         },
+    //         {
+    //             prompt: "Which outcome would provide the highest possible sum of rewards (i.e. which outcome provides the most money for both you and the other participant)?",
+    //             name: "payoffComprehension2",
+    //             options: choiceResponseOptions,
+    //             required: true,
+    //         }
+    //     ]
+    // };
+    // timeline.push(payoffComprehensionQuestions);
 
     // //Translucency consequences and choice:
     // var translucentChoice_trial = {
@@ -412,126 +570,102 @@ function createExperiment(instructionHTML, experimentSettings){
     // };
     // timeline.push(econExperience2);
 
+
+
     //Demographics:
 
-    //age
-    var age_trial = {
-        type: "spinbox",
-        min: 18,
-        max: 99,
-        preamble: "<p>Please indicate your age:</p>"
-    };
-    timeline.push(age_trial);
-
-    //gender
-    var gender_trial = {
-        type: 'leftAligned-survey-multi-choice',
-        questions: [
-        {prompt: "Please indicate your gender:", name: 'Gender', options: ["Female", "Male", "Other", "Prefer not to say"], required: true},
-        ],
-    };
-    timeline.push(gender_trial);
-
-    //date
-    //Creating the date variables:
-    var dateNumberString;
-    var days = ["Select one"]; //If you make it required, make a first option that won't be chosen
-    for (var i = 1; i <= 31; i++) {
-        if(i < 10){
-            //add a zero before single numbers
-            dateNumberString = "0" + i.toString();
-        }else{
-            //Do not add anything before double numbers
-            dateNumberString = i.toString();
-        }
-        days.push(dateNumberString); //add the number as a string for the plugin
-    }
-
-    var months = ["Select one"]; //If you make it required, make a first option that won't be chosen
-    for (var i = 1; i <= 12; i++) {
-        if(i < 10){
-            //add a zero before single numbers
-            dateNumberString = "0" + i.toString();
-        }else{
-            //Do not add anything before double numbers
-            dateNumberString = i.toString();
-        }
-        months.push(dateNumberString); //add the number as a string for the plugin
-    }
-
-    var years = ["Select one"]; //If you make it required, make a first option that won't be chosen
-    for (var i = 1900; i <= 2020; i++) {
-        years.push(i.toString()); //add the number as a string for the plugin
-    }
-
-    var date_trial = {
-        type: 'multi-dropdown',
-        preamble: '<p>Please provide your date of birth:</p>',
-        questions: [
-            {
-                prompt: "Day:",
-                options: days,
-                required: true,
-                name: "day"
-            },
-            {
-                prompt: "Month:",
-                options: months,
-                required: true,
-                name: "month"
-            },
-            {
-                prompt: "Year:",
-                options: years,
-                required: true,
-                name: "year"
-            }
-        ]
-    };
-    timeline.push(date_trial);
-
-    //Comments:
-    var commentsQuestion = {
-      type: 'survey-text',
-      questions: [
-        {prompt: "Do you have any comments and/or did you experience any issues?", name: "commentsQuestion", rows: 5, columns: 40, required: false}
-      ],
-    };
-    timeline.push(commentsQuestion);
-
-    //Debrief:
-    var debriefStim = "<h3>Thank you for your participation.</h3><p><strong>Make sure to click the 'Continue to Prolific for your payment' button at the end of this page or your data will not be saved and you will not receive your payment.</strong></p><p>The aim of this study is to investigate strategic decision-making in two player scenarios. Namely, we are interested in people's choices between a cooperative and a self-interested options, how they think about their choice, how they think about the other participant's choice, and how they think about the choice making process.</p><p>This was investigated using a single-shot (you only played once), normal form (both participants played simultaneously), double-choice (you chose between two options) <a href='https://en.wikipedia.org/wiki/Prisoner%27s_dilemma' target='_blank'>prisoner's dilemma.</a></p><p> One of the options you were presented with was a cooperative choice (it could lead to a better outcome for both you and the other participant if they also cooperate) and the other option was a self-interest choice (it would generally lead to a better outcome for you, but a worse one for the other participant).</p><p>This was an experimental condition to test if levels of cooperation, and thoughts about the decision-making process, are influenced by the possibility of one's choice being detected by the other player. This was to investigate this <a href='https://journals.sagepub.com/doi/abs/10.1177/1043463119885102' target='_blank'>theory about cooperation in social dilemmas (such as prisoner's dilemmas).</a></p>";
-    var debrief = {
-        type: 'debrief',
-        stimulus: debriefStim,
-        choices: ['Continue to Prolific for your payment']
-    };
-    timeline.push(debrief);
+    // //age
+    // var age_trial = {
+    //     type: "spinbox",
+    //     min: 18,
+    //     max: 99,
+    //     preamble: "<p>Please indicate your age:</p>"
+    // };
+    // timeline.push(age_trial);
+    //
+    // //gender
+    // var gender_trial = {
+    //     type: 'leftAligned-survey-multi-choice',
+    //     questions: [
+    //     {prompt: "Please indicate your gender:", name: 'Gender', options: ["Female", "Male", "Other", "Prefer not to say"], required: true},
+    //     ],
+    // };
+    // timeline.push(gender_trial);
+    //
+    // //date
+    // //Creating the date variables:
+    // var dateNumberString;
+    // var days = ["Select one"]; //If you make it required, make a first option that won't be chosen
+    // for (var i = 1; i <= 31; i++) {
+    //     if(i < 10){
+    //         //add a zero before single numbers
+    //         dateNumberString = "0" + i.toString();
+    //     }else{
+    //         //Do not add anything before double numbers
+    //         dateNumberString = i.toString();
+    //     }
+    //     days.push(dateNumberString); //add the number as a string for the plugin
+    // }
+    //
+    // var months = ["Select one"]; //If you make it required, make a first option that won't be chosen
+    // for (var i = 1; i <= 12; i++) {
+    //     if(i < 10){
+    //         //add a zero before single numbers
+    //         dateNumberString = "0" + i.toString();
+    //     }else{
+    //         //Do not add anything before double numbers
+    //         dateNumberString = i.toString();
+    //     }
+    //     months.push(dateNumberString); //add the number as a string for the plugin
+    // }
+    //
+    // var years = ["Select one"]; //If you make it required, make a first option that won't be chosen
+    // for (var i = 1900; i <= 2020; i++) {
+    //     years.push(i.toString()); //add the number as a string for the plugin
+    // }
+    //
+    // var date_trial = {
+    //     type: 'multi-dropdown',
+    //     preamble: '<p>Please provide your date of birth:</p>',
+    //     questions: [
+    //         {
+    //             prompt: "Day:",
+    //             options: days,
+    //             required: true,
+    //             name: "day"
+    //         },
+    //         {
+    //             prompt: "Month:",
+    //             options: months,
+    //             required: true,
+    //             name: "month"
+    //         },
+    //         {
+    //             prompt: "Year:",
+    //             options: years,
+    //             required: true,
+    //             name: "year"
+    //         }
+    //     ]
+    // };
+    // timeline.push(date_trial);
+    //
+    // //Comments:
+    // var commentsQuestion = {
+    //   type: 'survey-text',
+    //   questions: [
+    //     {prompt: "Do you have any comments and/or did you experience any issues?", name: "commentsQuestion", rows: 5, columns: 40, required: false}
+    //   ],
+    // };
+    // timeline.push(commentsQuestion);
+    //
+    // //Debrief:
+    // var debriefStim = "<h3>Thank you for your participation.</h3><p><strong>Make sure to click the 'Continue to Prolific for your payment' button at the end of this page or your data will not be saved and you will not receive your payment.</strong></p><p>The aim of this study is to investigate strategic decision-making in two player scenarios. Namely, we are interested in people's choices between a cooperative and a self-interested options, how they think about their choice, how they think about the other participant's choice, and how they think about the choice making process.</p><p>This was investigated using a single-shot (you only played once), normal form (both participants played simultaneously), double-choice (you chose between two options) <a href='https://en.wikipedia.org/wiki/Prisoner%27s_dilemma' target='_blank'>prisoner's dilemma.</a></p><p> One of the options you were presented with was a cooperative choice (it could lead to a better outcome for both you and the other participant if they also cooperate) and the other option was a self-interest choice (it would generally lead to a better outcome for you, but a worse one for the other participant).</p><p>This was an experimental condition to test if levels of cooperation, and thoughts about the decision-making process, are influenced by the possibility of one's choice being detected by the other player. This was to investigate this <a href='https://journals.sagepub.com/doi/abs/10.1177/1043463119885102' target='_blank'>theory about cooperation in social dilemmas (such as prisoner's dilemmas).</a></p>";
+    // var debrief = {
+    //     type: 'debrief',
+    //     stimulus: debriefStim,
+    //     choices: ['Continue to Prolific for your payment']
+    // };
+    // timeline.push(debrief);
 
     //Start the experiment
-    var userJsPsychData;
-    jsPsych.init({
-      timeline: timeline,
-      display_element: 'jspsych_target',
-      show_progress_bar: true,
-      on_finish: function() {
-        //Show data to check
-        jsPsych.data.displayData();
-
-        //Getting the data as a json string
-        userJsPsychData = jsPsych.data.get().json();
-        fullUserData.jsPsych = JSON.parse(userJsPsychData);
-
-        //Send Data:
-        socket.emit('Write Data', fullUserData);
-
-        //Take out the warning before unload
-        window.onbeforeunload = function() {
-            return undefined;
-        };
-
-        //Redirect to back to prolific
-        window.location = String("https://app.prolific.co/submissions/complete?cc=49DC9373")
-      }
-    });
-}

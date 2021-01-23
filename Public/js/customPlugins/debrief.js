@@ -106,9 +106,7 @@ jsPsych.plugins["debrief"] = (function() {
         				<p>Here is the contact information about the research team that was presented to you in the consent form:</p>
         				<ul>
         				<li><strong>Department: </strong>UCL Experimental Psychology</li>
-        				<li><strong>Name and contact details of the researchers: </strong>Samuel Dupret (samuel.dupret.19@ucl.ac.uk), Dr. Maarten Speenkenbrink (m.speekenbrink@ucl.ac.uk), & Prof. David Lagnado (d.lagnado@ucl.ac.uk)</li>
-        				<li><strong>Name and contact details of the UCL Data Protection Officer: </strong>Lee Shailer (data-protection@ucl.ac.uk)</li>
-        				<li>This study has been <strong>approved by UCL Experimental Psychology Ethics Chair</strong> [Project ID: EP/2014/005]</li>
+
         				</ul>
         			</div>`
 

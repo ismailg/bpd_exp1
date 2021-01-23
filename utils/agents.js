@@ -154,10 +154,11 @@ Agent.prototype.take_action = function (state) {
 
   var act = this.determine_action(state);
 
-  config.debug && console.log('%s took action %s', socket.id, act);
+  config.debug && console.log('agent %s took action %s', socket.id, act);
   var random_RT = this.determine_RT()
   this.timeout = setTimeout(function () {
-    socket.emit('take-action', { action: act, rt: random_RT, agent: true });
+    //change below to allow for agent to be also trustee in future
+    socket.emit('investor took action', { action: act, rt: random_RT, agent: true });
   }, random_RT);
   this.actions.push(act);
 };

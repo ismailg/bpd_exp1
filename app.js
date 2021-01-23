@@ -233,21 +233,22 @@ io.on('connection', function(socket){
 
           }
           io.in(socket.room_id).emit('start-game', { 'game': rooms[socket.room_id].current_game });
-          io.in(socket.room_id).emit('start-round', { 'game': rooms[socket.room_id].current_game, 'round': rooms[socket.room_id].current_round });
+          socket.on('player is waiting for results', function(){
+            // The below will ask agent to start round, and agent will take action
+            io.in(socket.room_id).emit('start-round', { 'game': rooms[socket.room_id].current_game, 'round': rooms[socket.room_id].current_round });
+          });
         }
       } catch (err) {
         console.log(err);
       }
     });
 
-    // this event takes an action from a (human or computer) user
-    // if the number of actions taken is equal to the number of users
-    // the outcome of the round is decided
-    socket.on('take-action-investor', function (data) {
+    // this event takes an action from a (human or computer) investor
+    socket.on('investor took action', function (data) {
 
-      // console.log('----------Take action DataIO----------');
-      // console.log( JSON.stringify(data, null, 2));
-      // console.log('----------Take action DataIOEnd----------');
+       //console.log('----------Take action DataIO----------');
+       // console.log( JSON.stringify(data, null, 2));
+       //console.log('----------Take action DataIOEnd----------');
       try {
         console.log('rooms[socket.room_id].current_game', rooms[socket.room_id].current_game)
 
@@ -260,11 +261,23 @@ io.on('connection', function(socket){
 
         // push the action in the current actions array
         rooms[socket.room_id].current_actions.push({ id: socket.id, action: data.action, rt: data.rt, agent: data.agent });
+
+        // Emit message investor has taken action
+        io.in(socket.room_id).emit('investor has chosen', data.action);
+        console.log("investor has chosen emitted---------");
+
       } catch (err) {
       console.log(err);
       }
 
      });
+
+
+     socket.on('trustee received results', function(data){
+       io.in(socket.room_id).emit('send investor funds', data);
+       console.log("investor funds sent---------", data);
+     });
+
 
      socket.on('take-action-trustee', function (data) {
 
@@ -329,7 +342,7 @@ io.on('connection', function(socket){
         }
         // then make new empty room
         if (typeof room_to_join == 'undefined') {
-          var new_room_id = uuid();
+          var new_room_id = uuidv4();
           rooms[new_room_id] = create_room(new_room_id, data.experiment, data.actualUserID);
           room_to_join = new_room_id;
         }
